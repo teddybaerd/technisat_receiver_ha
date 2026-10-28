@@ -1,0 +1,1 @@
+# technisat_receiver_ha
