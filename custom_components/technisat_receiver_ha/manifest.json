@@ -1,0 +1,13 @@
+{
+  "domain": "technisat_receiver_ha",
+  "name": "TechniSat Receiver HA",
+  "codeowners": [],
+  "config_flow": true,
+  "dependencies": ["network"],
+  "documentation": "https://github.com/teddybaerd/technisat_receiver_ha",
+  "integration_type": "device",
+  "iot_class": "local_polling",
+  "issue_tracker": "https://github.com/teddybaerd/technisat_receiver_ha/issues",
+  "requirements": [],
+  "version": "0.1.0"
+}

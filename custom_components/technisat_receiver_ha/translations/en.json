@@ -1,0 +1,72 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "TechniSat Receiver HA",
+        "description": "Receivers found on your network. Choose \"—\" to enter an IP address manually.",
+        "data": {
+          "host": "Receiver"
+        }
+      },
+      "manual": {
+        "title": "Receiver IP address",
+        "description": "Discovery found nothing (or is blocked, e.g. Docker bridge network). Enter the IP address of the receiver.",
+        "data": {
+          "host": "IP address"
+        }
+      },
+      "pin": {
+        "title": "PIN",
+        "description": "PIN of {name} ({host}) as set under Settings → Network → App control (default 0000).",
+        "data": {
+          "pin": "PIN"
+        }
+      },
+      "reconfigure": {
+        "title": "Reconfigure receiver",
+        "data": {
+          "host": "IP address",
+          "pin": "PIN"
+        }
+      }
+    },
+    "error": {
+      "cannot_connect": "The receiver does not answer. Check the IP address, and that Quick Start is enabled.",
+      "unsupported_device": "This device type is not supported (only set-top boxes were tested).",
+      "auth_failed": "The receiver rejected the PIN.",
+      "rcu_disabled": "No answer to the PIN. Enable \"App control\" in the receiver's network settings.",
+      "wrong_device": "This is a different receiver than the one configured."
+    },
+    "abort": {
+      "already_configured": "This receiver is already configured.",
+      "reconfigure_successful": "Receiver reconfigured."
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Power state source",
+        "description": "The receiver cannot report whether it is on or in standby, so the state is assumed. Optionally pick an entity that does know, e.g. the power sensor of a smart plug. Sensors count as on above the threshold; other entities when their state is on.",
+        "data": {
+          "status_entity": "Status entity",
+          "power_threshold": "Threshold (W)"
+        }
+      }
+    }
+  },
+  "entity": {
+    "remote": {
+      "remote": {
+        "name": "Remote"
+      }
+    }
+  },
+  "exceptions": {
+    "unknown_command": {
+      "message": "Unknown command \"{command}\". Use a key name from the README or a code from 0 to 127."
+    },
+    "auth_failed": {
+      "message": "The receiver at {host} did not accept the PIN or has app control disabled."
+    }
+  }
+}

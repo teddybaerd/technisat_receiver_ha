@@ -1,0 +1,72 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "TechniSat Receiver HA",
+        "description": "Im Netzwerk gefundene Receiver. „—“ wählen, um die IP-Adresse manuell einzugeben.",
+        "data": {
+          "host": "Receiver"
+        }
+      },
+      "manual": {
+        "title": "IP-Adresse des Receivers",
+        "description": "Die Suche hat nichts gefunden (oder ist blockiert, z. B. im Docker-Bridge-Netz). Gib die IP-Adresse des Receivers ein.",
+        "data": {
+          "host": "IP-Adresse"
+        }
+      },
+      "pin": {
+        "title": "PIN",
+        "description": "PIN von {name} ({host}) aus Einstellungen → Netzwerk → App-Steuerung (Standard 0000).",
+        "data": {
+          "pin": "PIN"
+        }
+      },
+      "reconfigure": {
+        "title": "Receiver neu konfigurieren",
+        "data": {
+          "host": "IP-Adresse",
+          "pin": "PIN"
+        }
+      }
+    },
+    "error": {
+      "cannot_connect": "Der Receiver antwortet nicht. IP-Adresse prüfen und kontrollieren, ob Schnellstart aktiviert ist.",
+      "unsupported_device": "Dieser Gerätetyp wird nicht unterstützt (getestet wurden nur Receiver).",
+      "auth_failed": "Der Receiver hat die PIN abgelehnt.",
+      "rcu_disabled": "Keine Antwort auf die PIN. Aktiviere „App-Steuerung“ in den Netzwerkeinstellungen des Receivers.",
+      "wrong_device": "Das ist ein anderer Receiver als der konfigurierte."
+    },
+    "abort": {
+      "already_configured": "Dieser Receiver ist bereits eingerichtet.",
+      "reconfigure_successful": "Receiver neu konfiguriert."
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Quelle für den Einschaltzustand",
+        "description": "Der Receiver meldet nicht, ob er an ist oder im Standby, der Zustand wird daher angenommen. Optional kannst Du eine Entität wählen, die es weiß, z. B. den Leistungssensor einer smarten Steckdose. Sensoren gelten oberhalb des Schwellwerts als an, andere Entitäten, wenn ihr Zustand „on“ ist.",
+        "data": {
+          "status_entity": "Status-Entität",
+          "power_threshold": "Schwellwert (W)"
+        }
+      }
+    }
+  },
+  "entity": {
+    "remote": {
+      "remote": {
+        "name": "Fernbedienung"
+      }
+    }
+  },
+  "exceptions": {
+    "unknown_command": {
+      "message": "Unbekannter Befehl „{command}“. Verwende einen Tastennamen aus der README oder einen Code von 0 bis 127."
+    },
+    "auth_failed": {
+      "message": "Der Receiver unter {host} hat die PIN nicht akzeptiert oder die App-Steuerung ist deaktiviert."
+    }
+  }
+}
