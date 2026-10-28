@@ -45,16 +45,18 @@ Copy `custom_components/technisat_receiver_ha` to `<config>/custom_components/` 
 
 ## Usage
 
+Entity IDs depend on the receiver name, the UI language and already existing entities (e.g. `_2` is appended if the DLNA integration already uses `media_player.digit_isio_stc`; with a German UI the remote is called `…_fernbedienung`). Replace `<your_receiver>` below with your own entity names (*Settings → Devices & services → TechniSat Receiver HA*).
+
 ```yaml
 # Switch on / off (toggle is skipped if the state already matches)
 action: media_player.turn_on
 target:
-  entity_id: media_player.digit_isio_stc
+  entity_id: media_player.<your_receiver>
 
 # Open the menu and confirm with OK (0.5 s between keys)
 action: remote.send_command
 target:
-  entity_id: remote.digit_isio_stc_remote
+  entity_id: remote.<your_receiver>_remote
 data:
   command: [menu, ok]
   delay_secs: 0.5
@@ -62,7 +64,7 @@ data:
 # Raw key code
 action: remote.send_command
 target:
-  entity_id: remote.digit_isio_stc_remote
+  entity_id: remote.<your_receiver>_remote
 data:
   command: ["36"]
 ```
@@ -80,7 +82,16 @@ Note: `standby` sent through `remote.send_command` toggles the receiver; with an
 | Nothing found / no replies in Docker | Bridge network drops replies from port 8093 → host networking, or enter IP manually |
 | State is wrong after using the physical remote | State is assumed → use a status entity |
 
-Debug logging: `logger: logs: custom_components.technisat_receiver_ha: debug`
+Debug logging (add to `configuration.yaml`, restart or use the `logger.set_level` action):
+
+```yaml
+logger:
+  default: warning
+  logs:
+    custom_components.technisat_receiver_ha: debug  # shows sent keys, discovery, UDP socket
+```
+
+`unknown` on the media player is normal without a status entity: the receiver does not report on/standby (see Limitations). `unavailable` means the receiver does not answer.
 
 ## Credits
 
@@ -108,6 +119,10 @@ Home-Assistant-Integration für **TechniSat DIGIT Satellitenreceiver** (entwicke
 1. **App-Steuerung** in den Netzwerkeinstellungen aktivieren (sonst ignoriert der Receiver alles).
 2. **Schnellstart** in den Grundeinstellungen aktivieren (sonst ist das Netzwerk im Standby aus, der Receiver ist nicht erreichbar und lässt sich nicht einschalten).
 3. PIN merken (Standard `0000`).
+
+**Entitätsnamen:** Sie hängen von Receivername, Sprache und bereits vorhandenen Entitäten ab (z. B. `_2`, wenn die DLNA-Integration den Namen schon belegt; bei deutscher Oberfläche heißt die Fernbedienung `…_fernbedienung`).
+
+**Zustand `unbekannt`:** Ohne Status-Entität normal, der Receiver meldet Ein/Standby nicht. `nicht verfügbar` bedeutet, dass der Receiver nicht antwortet.
 
 **Docker:** Der Receiver antwortet von UDP-Port 8093 auf Anfragen an Port 8090. Im Docker-Bridge-Netz können diese Antworten verloren gehen, daher `network_mode: host` verwenden (bei Portainer: Network „host“). Bei fehlgeschlagener Suche die IP manuell eingeben und dem Receiver per DHCP-Reservierung eine feste IP geben.
 
