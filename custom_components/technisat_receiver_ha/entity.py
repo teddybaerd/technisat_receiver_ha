@@ -29,7 +29,7 @@ class TechniSatEntity(CoordinatorEntity[TechniSatCoordinator]):
     @property
     def assumed_state(self) -> bool:
         """Without a status entity the on/off state is only a guess."""
-        return not self.receiver.has_status_source
+        return not (self.receiver.has_status_source or self.coordinator.renderer.detected)
 
     async def async_added_to_hass(self) -> None:
         """Follow power state changes."""

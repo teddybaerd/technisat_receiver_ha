@@ -117,6 +117,8 @@ class TechniSatReceiver:
     @property
     def power(self) -> bool | None:
         """True/False/None (unknown)."""
+        if not self.has_status_source and self.coordinator.renderer.detected:
+            return self.coordinator.renderer.power
         return self._power
 
     @property
@@ -211,8 +213,9 @@ class TechniSatReceiver:
     async def async_set_power(self, on: bool) -> None:
         """Switch on/off. The standby key is a toggle, so skip when already there."""
         async with self._power_lock:
-            if self._power is on:
+            if self.power is on:
                 return
             await self._async_send([KEY_STANDBY], KEY_DELAY, KEY_HOLD)
             if not self.has_status_source:
                 self._set_power(on)
+            await self.coordinator.async_request_refresh()

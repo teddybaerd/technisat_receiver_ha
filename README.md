@@ -14,12 +14,27 @@ Home Assistant custom integration for **TechniSat DIGIT satellite receivers** (d
 - Optional status source (e.g. the power sensor of a smart plug) to get a *real* on/off state
 - English and German UI
 
-## Limitations — please read
+## Automatic power detection (0.2.0)
 
-- **The receiver does not report whether it is on or in standby**, and it does not report the current channel/programme. Therefore the integration cannot show them. By default the on/off state is **assumed** (it follows the commands HA sends and is restored after a restart). Standby is a *toggle* key on the receiver.
-- To get a real state, set a **status entity** in the integration options: a power `sensor` (on above a threshold, default 9 W — the DIGIT ISIO STC+ datasheet lists 13.5 W on vs. 5 W Quick-Start standby), or any `binary_sensor`/`switch`/`input_boolean`.
-- Only the keys `standby` and `menu` were verified on real hardware so far. The other key codes come from the documented protocol and should work, but are untested. Please report your findings via an issue.
-- Only set-top boxes were tested. TechniSat TVs or other devices are not supported.
+The integration searches SSDP every 30 seconds for a MediaRenderer **from the
+configured receiver IP**. On the tested DIGIT ISIO STC+, this renderer appears
+when switched on and disappears in standby. Device paths such as dev5/dev6/dev7
+are dynamic and are not hard-coded. The ordinary media server remains online.
+This is inferred power status, not an explicit vendor power API.
+
+- Switch the receiver on once after integration setup/reload so renderer support
+  can be confirmed. Until then, the existing assumed state is used.
+- On is detected on the next successful search (about 30 seconds). Standby needs
+  two consecutive searches with baseline services but no renderer (about 60 seconds).
+- Missing all SSDP responses means unknown after renderer detection, never off.
+  Failure of the remote keep-alive makes entities unavailable.
+- A configured external status entity takes priority.
+- Requires UDP 1900 communication on the local network. Searches use unicast and
+  multicast, with replies restricted to the configured receiver address.
+- This release polls; SSDP push notifications are not implemented.
+- Recordings, background activity and other firmware/device models need hardware
+  validation. If the renderer remains active, use an external status entity.
+- Current satellite channel/programme is not provided by this detection.
 
 ## Receiver prerequisites
 
@@ -80,7 +95,7 @@ Note: `standby` sent through `remote.send_command` toggles the receiver; with an
 | "No answer to the PIN" | App control is disabled on the receiver |
 | Entities unavailable in standby | Quick Start disabled |
 | Nothing found / no replies in Docker | Bridge network drops replies from port 8093 → host networking, or enter IP manually |
-| State is wrong after using the physical remote | State is assumed → use a status entity |
+| State is wrong after using the physical remote | Check SSDP reachability and switch receiver on once; alternatively use a status entity |
 
 Debug logging (add to `configuration.yaml`, restart or use the `logger.set_level` action):
 
@@ -91,7 +106,7 @@ logger:
     custom_components.technisat_receiver_ha: debug  # shows sent keys, discovery, UDP socket
 ```
 
-`unknown` on the media player is normal without a status entity: the receiver does not report on/standby (see Limitations). `unavailable` means the receiver does not answer.
+`unknown` can occur before a usable status observation: the receiver does not report on/standby (see Limitations). `unavailable` means the receiver does not answer.
 
 ## Credits
 
@@ -109,11 +124,17 @@ Home-Assistant-Integration für **TechniSat DIGIT Satellitenreceiver** (entwicke
 
 **Funktionen:** automatische Suche im Netzwerk (oder manuelle IP), `media_player` (Ein/Aus, Lautstärke, Mute, Programm ±, Play/Pause, Stop), `remote` (`remote.send_command` mit Tastennamen oder Tastencodes), optionale Statusquelle für den echten Ein/Aus-Zustand.
 
-**Einschränkungen:**
-- Der Receiver meldet **weder Standby/Ein noch das aktuelle Programm**. Der Ein/Aus-Zustand ist daher standardmäßig **angenommen** (folgt den gesendeten Befehlen, wird nach Neustart wiederhergestellt). Standby ist am Receiver eine Umschalttaste.
-- Für einen echten Zustand in den Integrationsoptionen eine **Status-Entität** wählen, z. B. den Leistungssensor einer smarten Steckdose (Schwellwert standardmäßig 9 W; laut Datenblatt ca. 13,5 W an, 5 W Standby mit Schnellstart).
-- Nur `standby` und `menu` sind bisher an echter Hardware geprüft; die übrigen Tastencodes stammen aus der dokumentierten Protokollbeschreibung.
-- Getestet nur mit Receivern, nicht mit TechniSat-Fernsehern.
+**Automatische Zustandserkennung ab 0.2.0:**
+Die Integration sucht alle 30 Sekunden nach dem MediaRenderer des konfigurierten
+Receivers. Beim getesteten STC+ erscheint er im Betrieb und verschwindet im
+Standby; wechselnde dev-Nummern spielen keine Rolle. Nach Einrichtung/Neuladen
+den Receiver einmal einschalten, damit diese Fähigkeit erkannt wird. Bis dahin
+bleibt der Zustand angenommen. Einschalten wird nach etwa 30 Sekunden erkannt,
+Standby nach zwei bestätigten Suchläufen (etwa 60 Sekunden). Fehlende SSDP-Antworten
+werden nicht als Standby gewertet. Eine konfigurierte Status-Entität hat Vorrang.
+UDP 1900 muss im lokalen Netzwerk erreichbar sein. Diese Version fragt ab;
+Push ist noch nicht implementiert. Verhalten bei Aufnahmen und anderer Firmware
+muss noch am Gerät geprüft werden. Das aktuelle TV-Programm wird nicht ermittelt.
 
 **Voraussetzungen am Receiver:**
 1. **App-Steuerung** in den Netzwerkeinstellungen aktivieren (sonst ignoriert der Receiver alles).
@@ -122,7 +143,7 @@ Home-Assistant-Integration für **TechniSat DIGIT Satellitenreceiver** (entwicke
 
 **Entitätsnamen:** Sie hängen von Receivername, Sprache und bereits vorhandenen Entitäten ab (z. B. `_2`, wenn die DLNA-Integration den Namen schon belegt; bei deutscher Oberfläche heißt die Fernbedienung `…_fernbedienung`).
 
-**Zustand `unbekannt`:** Ohne Status-Entität normal, der Receiver meldet Ein/Standby nicht. `nicht verfügbar` bedeutet, dass der Receiver nicht antwortet.
+**Zustand `unbekannt`:** Es liegt noch keine verwertbare Statusbeobachtung vor. `nicht verfügbar` bedeutet, dass der Receiver nicht antwortet.
 
 **Docker:** Der Receiver antwortet von UDP-Port 8093 auf Anfragen an Port 8090. Im Docker-Bridge-Netz können diese Antworten verloren gehen, daher `network_mode: host` verwenden (bei Portainer: Network „host“). Bei fehlgeschlagener Suche die IP manuell eingeben und dem Receiver per DHCP-Reservierung eine feste IP geben.
 

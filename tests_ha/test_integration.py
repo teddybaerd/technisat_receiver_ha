@@ -27,7 +27,8 @@ from ts_protocol import TechniSatClient  # noqa: E402
 
 @pytest.fixture(autouse=True)
 def _enable(enable_custom_integrations):
-    yield
+    with patch("custom_components.technisat_receiver_ha.coordinator.async_search", return_value=set()):
+        yield
 
 
 @pytest.fixture
@@ -105,3 +106,32 @@ async def test_status_entity_drives_state(hass, receiver):
     )
     await asyncio.sleep(0.1)
     assert (11, "pressed") in receiver.keys
+
+
+
+async def test_renderer_power_and_unreachable(hass, receiver):
+    entry = MockConfigEntry(
+        domain=DOMAIN, unique_id="renderer-test", title="Receiver",
+        data={CONF_HOST: "127.0.0.1", CONF_PIN: "0000", CONF_SERIAL: "renderer-test"},
+    )
+    entry.add_to_hass(hass)
+    renderer = {"urn:schemas-upnp-org:device:MediaRenderer:1"}
+    baseline = {"urn:schemas-upnp-org:device:MediaServer:1"}
+    with patch("custom_components.technisat_receiver_ha.coordinator.async_search", return_value=renderer):
+        assert await hass.config_entries.async_setup(entry.entry_id)
+        await hass.async_block_till_done()
+    coordinator = entry.runtime_data.coordinator
+    entity_id = "media_player.receiver"
+    assert hass.states.get(entity_id).state == "on"
+    with patch("custom_components.technisat_receiver_ha.coordinator.async_search", return_value=baseline):
+        await coordinator.async_refresh()
+        assert hass.states.get(entity_id).state == "on"
+        await coordinator.async_refresh()
+        assert hass.states.get(entity_id).state == "off"
+    with patch("custom_components.technisat_receiver_ha.coordinator.async_search", return_value=set()):
+        await coordinator.async_refresh()
+        assert hass.states.get(entity_id).state == "unknown"
+    with patch.object(entry.runtime_data.client, "async_keepalive", return_value=False):
+        await coordinator.async_refresh()
+        assert hass.states.get(entity_id).state == "unavailable"
+    await hass.config_entries.async_unload(entry.entry_id)
