@@ -5,6 +5,7 @@ from __future__ import annotations
 import asyncio
 from collections.abc import Sequence
 import logging
+import time
 
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import (
@@ -47,6 +48,10 @@ from .protocol import (
 )
 
 _LOGGER = logging.getLogger(__name__)
+
+# After a standby command the SSDP observation lags (on: ~30 s, standby: ~60 s).
+# Until it confirms the new state, or this time is up, the commanded state counts.
+TRANSITION_SECONDS = 90.0
 
 type TechniSatConfigEntry = ConfigEntry[TechniSatReceiver]
 
@@ -100,6 +105,7 @@ class TechniSatReceiver:
             entry.options.get(CONF_POWER_THRESHOLD, DEFAULT_POWER_THRESHOLD)
         )
         self._power: bool | None = None
+        self._expected: tuple[bool, float] | None = None  # (state, monotonic deadline)
         self._power_lock = asyncio.Lock()
 
     # ------------------------------------------------------------- properties
@@ -118,7 +124,14 @@ class TechniSatReceiver:
     def power(self) -> bool | None:
         """True/False/None (unknown)."""
         if not self.has_status_source and self.coordinator.renderer.detected:
-            return self.coordinator.renderer.power
+            observed = self.coordinator.renderer.power
+            if self._expected is not None:
+                value, deadline = self._expected
+                if observed == value or time.monotonic() >= deadline:
+                    self._expected = None  # confirmed, or give up and trust SSDP
+                else:
+                    return value
+            return observed
         return self._power
 
     @property
@@ -173,6 +186,14 @@ class TechniSatReceiver:
             async_dispatcher_send(self.hass, self.signal)
 
     @callback
+    def _commanded(self, value: bool) -> None:
+        """Remember a state we just commanded and tell the entities."""
+        self._expected = (value, time.monotonic() + TRANSITION_SECONDS)
+        if not self.has_status_source:
+            self._power = value
+        async_dispatcher_send(self.hass, self.signal)
+
+    @callback
     def restore_power(self, value: bool) -> None:
         """Seed the assumed state from the previous run."""
         if self._power is None and not self.has_status_source:
@@ -203,12 +224,13 @@ class TechniSatReceiver:
     ) -> None:
         """Send keys; keeps the assumed state in step when standby is pressed."""
         await self._async_send(codes, delay, hold)
+        current = self.power
         if (
             not self.has_status_source
-            and self._power is not None
+            and current is not None
             and list(codes).count(KEY_STANDBY) % 2
         ):
-            self._set_power(not self._power)
+            self._commanded(not current)
 
     async def async_set_power(self, on: bool) -> None:
         """Switch on/off. The standby key is a toggle, so skip when already there."""
@@ -217,5 +239,5 @@ class TechniSatReceiver:
                 return
             await self._async_send([KEY_STANDBY], KEY_DELAY, KEY_HOLD)
             if not self.has_status_source:
-                self._set_power(on)
+                self._commanded(on)
             await self.coordinator.async_request_refresh()

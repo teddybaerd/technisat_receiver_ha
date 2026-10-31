@@ -135,3 +135,55 @@ async def test_renderer_power_and_unreachable(hass, receiver):
         await coordinator.async_refresh()
         assert hass.states.get(entity_id).state == "unavailable"
     await hass.config_entries.async_unload(entry.entry_id)
+
+
+async def test_commanded_state_bridges_ssdp_lag(hass, receiver):
+    """Right after a command the commanded state counts; turn_on must not be skipped."""
+    entry = MockConfigEntry(
+        domain=DOMAIN, unique_id="lag-test", title="Receiver",
+        data={CONF_HOST: "127.0.0.1", CONF_PIN: "0000", CONF_SERIAL: "lag-test"},
+    )
+    entry.add_to_hass(hass)
+    renderer = {"urn:schemas-upnp-org:device:MediaRenderer:1"}
+    baseline = {"urn:schemas-upnp-org:device:MediaServer:1"}
+    target = "custom_components.technisat_receiver_ha.coordinator.async_search"
+    entity_id = "media_player.receiver"
+    with patch(target, return_value=renderer):
+        assert await hass.config_entries.async_setup(entry.entry_id)
+        await hass.async_block_till_done()
+        assert hass.states.get(entity_id).state == "on"
+
+        # turn off: SSDP still reports the renderer (stale) -> state is already "off"
+        await hass.services.async_call(
+            "media_player", "turn_off", {"entity_id": entity_id}, blocking=True
+        )
+        await asyncio.sleep(0.1)
+        await entry.runtime_data.coordinator.async_refresh()
+        assert hass.states.get(entity_id).state == "off"
+        assert receiver.keys.count((11, "pressed")) == 1
+
+        # turn on again right away must send the key (no skip on stale "on")
+        await hass.services.async_call(
+            "media_player", "turn_on", {"entity_id": entity_id}, blocking=True
+        )
+        await asyncio.sleep(0.1)
+        assert receiver.keys.count((11, "pressed")) == 2
+        assert hass.states.get(entity_id).state == "on"
+
+    # standby commanded, SSDP catches up: confirmed after two misses
+    with patch(target, return_value=baseline):
+        await hass.services.async_call(
+            "media_player", "turn_off", {"entity_id": entity_id}, blocking=True
+        )
+        await asyncio.sleep(0.1)
+        coordinator = entry.runtime_data.coordinator
+        await coordinator.async_refresh()
+        await coordinator.async_refresh()
+        assert hass.states.get(entity_id).state == "off"
+
+    # transition time over and SSDP says the receiver is on (e.g. physical remote)
+    entry.runtime_data._expected = (False, 0.0)
+    with patch(target, return_value=renderer):
+        await entry.runtime_data.coordinator.async_refresh()
+        assert hass.states.get(entity_id).state == "on"
+    await hass.config_entries.async_unload(entry.entry_id)
