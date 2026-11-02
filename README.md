@@ -34,7 +34,14 @@ This is inferred power status, not an explicit vendor power API.
 - This release polls; SSDP push notifications are not implemented.
 - Recordings, background activity and other firmware/device models need hardware
   validation. If the renderer remains active, use an external status entity.
-- Current satellite channel/programme is not provided by this detection.
+- After a command from Home Assistant the commanded state is used for up to 90 s until the detection confirms it (0.2.1).
+
+## Limitations
+
+- **No current channel / programme / show.** The receiver does not report them. Checked: the remote protocol (UDP 8090) has no status call, the UPnP MediaRenderer is idle (no media, volume and mute always 0, nothing changes when switching channels), and the receiver does not offer the Frontier Silicon API that radios use. The EPG of the TechniSat CONNECT app is not available from the receiver. Diagnostic helper: `tools/ts_renderer.py`.
+- **On/standby is inferred**, not reported by a vendor API (see above). Without a detected renderer or a status entity it is only assumed. Standby is a toggle key on the receiver.
+- **Not verified:** recordings and timers (no disk available for testing), radio mode, other firmware/models, TechniSat TVs. Only the keys `standby` and `menu` were verified on real hardware; the other key codes come from the documented protocol. Please report findings via an issue.
+- Alternative for a real on/off state: a **status entity** in the options (e.g. the power sensor of a smart plug, default threshold 9 W; the DIGIT ISIO STC+ datasheet lists 13.5 W on vs. 5 W Quick-Start standby).
 
 ## Receiver prerequisites
 
@@ -135,6 +142,12 @@ werden nicht als Standby gewertet. Eine konfigurierte Status-Entität hat Vorran
 UDP 1900 muss im lokalen Netzwerk erreichbar sein. Diese Version fragt ab;
 Push ist noch nicht implementiert. Verhalten bei Aufnahmen und anderer Firmware
 muss noch am Gerät geprüft werden. Das aktuelle TV-Programm wird nicht ermittelt.
+
+**Einschränkungen:**
+- **Kein aktuelles Programm, keine Sendung.** Der Receiver meldet sie nicht. Geprüft: Das Steuerprotokoll (UDP 8090) hat keine Statusabfrage, der UPnP-MediaRenderer ist im Leerlauf (kein Medium, Lautstärke und Stumm immer 0, keine Änderung beim Umschalten), und die Frontier-Silicon-Schnittstelle der Radios gibt es beim Receiver nicht. Die Programmvorschau der CONNECT-App ist nicht über den Receiver abrufbar. Hilfsskript: `tools/ts_renderer.py`.
+- **Ein/Standby wird abgeleitet**, nicht von einer Hersteller-Schnittstelle gemeldet. Ohne erkannten Renderer oder Status-Entität ist der Zustand nur angenommen. Standby ist am Receiver eine Umschalttaste.
+- **Nicht geprüft:** Aufnahmen und Timer (keine Festplatte zum Testen), Radiomodus, andere Firmware/Modelle, TechniSat-Fernseher. An echter Hardware bestätigt sind nur `standby` und `menu`; die übrigen Tastencodes stammen aus der dokumentierten Protokollbeschreibung. Rückmeldungen gern als Issue.
+- Alternative für einen echten Zustand: **Status-Entität** in den Optionen, z. B. der Leistungssensor einer smarten Steckdose (Schwellwert standardmäßig 9 W; laut Datenblatt ca. 13,5 W an, 5 W im Standby mit Schnellstart).
 
 **Voraussetzungen am Receiver:**
 1. **App-Steuerung** in den Netzwerkeinstellungen aktivieren (sonst ignoriert der Receiver alles).
