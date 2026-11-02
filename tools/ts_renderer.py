@@ -26,7 +26,10 @@ def ssdp():
         'M-SEARCH * HTTP/1.1\r\nHOST: 239.255.255.250:1900\r\n'
         'MAN: "ssdp:discover"\r\nMX: 1\r\nST: ssdp:all\r\n\r\n'
     ).encode()
+    sock.setsockopt(socket.IPPROTO_IP, socket.IP_MULTICAST_TTL, 2)
     for _ in range(3):
+        # The integration sends both; some receivers only answer one of them.
+        sock.sendto(request, ("239.255.255.250", 1900))
         sock.sendto(request, (HOST, 1900))
     found = {}
     end = time.time() + 4
